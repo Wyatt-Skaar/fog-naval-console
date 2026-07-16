@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ISA — Fog Naval Console</title>
+<style>
+  :root{
+    --bg:#0b0f14; --panel:#131a22; --panel2:#0e141b; --border:#243240; --borderSoft:#1a242e;
+    --ink:#c5d2dc; --muted:#6b7d8c; --faint:#3d4b58;
+    --friendly:#46c06a; --hostile:#ef5552; --teal:#35c2b6; --amber:#e0a13a; --beacon:#eef4f8;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;font-size:13px;overflow:hidden}
+  #app{display:flex;flex-direction:column;height:100vh}
+
+  input,select,button{font-family:inherit}
+  input[type=number]{ -moz-appearance:textfield }
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .inp{background:var(--bg);border:1px solid var(--border);color:var(--ink);border-radius:5px;padding:5px 8px;font-size:13px;outline:none}
+  .inp.mono{font-family:var(--mono);text-align:center}
+  .scroll::-webkit-scrollbar{width:10px;height:10px}
+  .scroll::-webkit-scrollbar-track{background:var(--panel2)}
+  .scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+
+  input[type=range]{-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;outline:none;background:var(--border)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--beacon);cursor:pointer;border:2px solid var(--bg)}
+  input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--beacon);cursor:pointer;border:2px solid var(--bg)}
+
+  .btn{background:var(--panel);border:1px solid var(--border);color:var(--ink);border-radius:6px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;user-select:none;transition:filter .12s}
+  .btn:hover{filter:brightness(1.18)}
+  .pill{font-family:var(--mono);font-size:11px;font-weight:700;border-radius:20px;padding:2px 10px}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+  .seg button{border:none;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;background:transparent;color:var(--muted)}
+
+  .topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--panel2);flex-wrap:wrap}
+  .title{font-weight:700;letter-spacing:1px;font-size:14px;color:var(--beacon)}
+  .statusbar{height:24px;display:flex;align-items:center;padding:0 16px;font-size:11px;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--borderSoft)}
+  .main{display:flex;flex:1;min-height:0}
+  .boardwrap{flex:1;overflow:auto;padding:16px}
+  .boardctl{display:flex;gap:16px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+  .ctl{display:flex;align-items:center;gap:6px}
+  .ctl .lab{color:var(--muted);font-size:11px}
+  .sidebar{width:380px;min-width:380px;border-left:1px solid var(--border);background:var(--panel);overflow:auto;display:flex;flex-direction:column}
+
+  .sectlabel{font-size:10px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin:16px 0 8px}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field .lab{font-size:10px;color:var(--muted);letter-spacing:.5px}
+  .row{display:flex;gap:10px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap}
+  .readout{display:flex;flex-direction:column;gap:1px}
+  .readout .lab{font-size:9px;color:var(--muted);letter-spacing:.5px;text-transform:uppercase}
+  .readout .val{font-weight:700;font-family:var(--mono)}
+  .box{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px}
+
+  .check{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--ink)}
+  .cbox{width:16px;height:16px;border-radius:4px;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;color:#04201d;font-size:11px;font-weight:900}
+
+  .listrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;margin-top:4px;border:1px solid transparent;cursor:pointer}
+  .bar{position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:5px;overflow:hidden;margin-bottom:5px}
+  .bar .fill{position:absolute;inset:0}
+  .bar .txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);color:var(--beacon)}
+
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
+  .modal{width:460px;max-width:90vw;max-height:80vh;overflow:auto;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .savedrow{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--panel2);border:1px solid var(--border);border-radius:6px}
+  .warn{background:#2a1a0a;border:1px solid var(--amber);color:var(--amber);border-radius:6px;padding:8px 10px;font-size:12px;margin-bottom:12px}
+  svg{display:block}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+"use strict";
+/* =========================================================================
+   ISA — FOG NAVAL CONSOLE  (standalone, offline)
+   State tracker for ship-on-ship combat. Does not roll dice or enforce rules.
+   1 sq = 500 ft (configurable) · pivot -10%/36deg, cap -50% · hull + system HP
+   · per-cannon load/aim/fire · move-mode clamps drag to a ship's reach.
+   Saves to this browser's local storage (no internet, no install needed).
+   ======================================================================= */
+
+/* ---------- palette (mirrors CSS) ---------- */
+var C={bg:"#0b0f14",panel:"#131a22",panel2:"#0e141b",border:"#243240",borderSoft:"#1a242e",
+  ink:"#c5d2dc",muted:"#6b7d8c",faint:"#3d4b58",friendly:"#46c06a",hostile:"#ef5552",
+  teal:"#35c2b6",amber:"#e0a13a",beacon:"#eef4f8"};
+
+/* ---------- stock hulls (BOAT COMBAT doc) ---------- */
+var HULLS={
+  Sloop:{ac:30,hull:100,move:5000,init:5},
+  Schooner:{ac:40,hull:150,move:4500,init:4},
+  Brigantine:{ac:50,hull:250,move:4000,init:3},
+  Galleon:{ac:60,hull:400,move:3000,init:2},
+  Manowar:{ac:75,hull:600,move:2000,init:1}
+};
+var AMMO=["Solid shot","Chain","Grape","Special"];
+var CANNON_FLOW=["Idle","Loading","Loaded","Aiming","Ready","Fired"];
+var CANNON_COLOR={Idle:C.muted,Loading:C.amber,Loaded:C.teal,Aiming:C.amber,Ready:C.friendly,Fired:C.hostile};
+
+/* ---------- state ---------- */
+var state={
+  ships:[],
+  grid:{cols:30,rows:20,ftPerCell:500},
+  zoom:1, selectedId:null, round:1,
+  showRange:true, showDist:true, moveMode:false, addFaction:"friendly"
+};
+
+/* ---------- helpers ---------- */
+function uid(){return Math.random().toString(36).slice(2,9);}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function angDiff(a,b){var d=Math.abs(((a-b)%360)+360)%360;return d>180?360-d:d;}
+function pivotPenalty(t){var s=Math.floor(Math.min(t,180)/36);return Math.min(s*10,50);}
+function modifiedMove(s){
+  var turned=angDiff(s.heading,s.roundStartHeading);
+  var pen=pivotPenalty(turned);
+  var move=s.move*(1-pen/100);
+  if(s.fullSpeed) move*=1.5;
+  return {move:move,pen:pen,turned:turned};
+}
+function getShip(id){for(var i=0;i<state.ships.length;i++)if(state.ships[i].id===id)return state.ships[i];return null;}
+function selected(){return getShip(state.selectedId);}
+
+function defaultSystems(){return [
+  {id:uid(),name:"Engine",max:50,cur:50},
+  {id:uid(),name:"Navigation",max:50,cur:50},
+  {id:uid(),name:"Command Bridge",max:50,cur:50},
+  {id:uid(),name:"Crystal Core",max:50,cur:50}
+];}
+function newShip(faction,hullName){
+  var st=HULLS[hullName]||{ac:40,hull:150,move:4000,init:3};
+  var gx=state.grid.cols/2+(faction==="hostile"?4:-4);
+  var gy=state.grid.rows/2+(Math.random()*4-2);
+  var heading=faction==="hostile"?180:0;
+  return {id:uid(),name:hullName==="Custom"?"New Ship":hullName,faction:faction,hullClass:hullName,
+    ac:st.ac,hullMax:st.hull,hullCur:st.hull,move:st.move,init:st.init,
+    gx:gx,gy:gy,heading:heading,roundStartHeading:heading,roundStartPos:{gx:gx,gy:gy},fullSpeed:false,
+    systems:defaultSystems(),
+    cannons:[{id:uid(),name:"Battery 1",status:"Idle",ammo:"Solid shot",target:""},
+             {id:uid(),name:"Battery 2",status:"Idle",ammo:"Solid shot",target:""}]};
+}
+
+/* ---------- storage (browser localStorage; safe if blocked) ---------- */
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}}
+function lsGet(k){try{var r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
+function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
+function lsKeys(prefix){try{var out=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf(prefix)===0)out.push(k.slice(prefix.length));}return out;}catch(e){return [];}}
+var STORAGE_OK=(function(){try{localStorage.setItem("isa:_t","1");localStorage.removeItem("isa:_t");return true;}catch(e){return false;}})();
+var K_CUR="isa:current", P_SAVE="isa:battle:", P_TPL="isa:template:";
+var persistTimer=null;
+function schedulePersist(){if(!STORAGE_OK)return;clearTimeout(persistTimer);persistTimer=setTimeout(function(){lsSet(K_CUR,{ships:state.ships,grid:state.grid,round:state.round});},500);}
+
+/* ---------- tiny DOM helper ---------- */
+function el(tag,attrs){
+  var e=document.createElement(tag); attrs=attrs||{};
+  for(var k in attrs){
+    var v=attrs[k];
+    if(v==null) continue;
+    if(k==="style"){for(var s in v)e.style[s]=v[s];}
+    else if(k==="class")e.className=v;
+    else if(k.slice(0,2)==="on"&&typeof v==="function")e.addEventListener(k.slice(2).toLowerCase(),v);
+    else if(k==="dataset"){for(var d in v)e.dataset[d]=v[d];}
+    else e.setAttribute(k,v);
+  }
+  for(var i=2;i<arguments.length;i++){
+    var kids=arguments[i]; if(kids==null)continue;
+    if(!Array.isArray(kids))kids=[kids];
+    for(var j=0;j<kids.length;j++){var kid=kids[j];if(kid==null||kid===false)continue;
+      e.appendChild(typeof kid==="object"?kid:document.createTextNode(String(kid)));}
+  }
+  return e;
+}
+
+/* ---------- skeleton refs ---------- */
+var ref={}; // boardContainer, panelEl, listEl, statusEl, roundEl, moveBtn, addSeg, rangeChk, distChk
+var R={};   // live readout spans for selected ship
+var drag=null;
+
+/* =========================================================================
+   BUILD SKELETON ONCE
+   ======================================================================= */
+function buildSkeleton(){
+  var app=document.getElementById("app");
+  app.innerHTML="";
+
+  /* ----- top bar ----- */
+  var top=el("div",{class:"topbar"});
+  top.appendChild(el("div",{class:"title"},"ISA · FOG NAVAL CONSOLE"));
+  ref.roundEl=el("span",{class:"pill",style:{color:C.amber,border:"1px solid "+C.amber}},"ROUND 1");
+  top.appendChild(ref.roundEl);
+  top.appendChild(el("button",{class:"btn",style:{background:C.amber,color:"#1a1206",border:"1px solid "+C.amber},onClick:newRound},"New round"));
+
+  ref.moveBtn=el("button",{class:"btn",onClick:function(){state.moveMode=!state.moveMode;refreshChrome();renderBoard();renderStatus();},
+    title:"When ON, dragging a ship is limited to its movement budget"},"Move mode: OFF");
+  top.appendChild(ref.moveBtn);
+
+  top.appendChild(divider());
+
+  top.appendChild(el("span",{class:"lab",style:{color:C.muted,fontSize:"11px"}},"ADD:"));
+  ref.addSeg=el("div",{class:"seg"});
+  ref.addSeg.appendChild(segBtn("friendly","Friendly",C.friendly));
+  ref.addSeg.appendChild(segBtn("hostile","Hostile",C.hostile));
+  top.appendChild(ref.addSeg);
+  Object.keys(HULLS).forEach(function(h){
+    top.appendChild(el("button",{class:"btn",onClick:function(){addShip(h);}},h));
+  });
+  top.appendChild(el("button",{class:"btn",style:{border:"1px solid "+C.teal,color:C.teal},onClick:function(){addShip("Custom");}},"+ Custom"));
+
+  top.appendChild(el("div",{style:{flex:"1"}}));
+  top.appendChild(el("button",{class:"btn",onClick:function(){openModal("templates");}},"Templates"));
+  top.appendChild(el("button",{class:"btn",onClick:function(){openModal("battles");}},"Battles"));
+  top.appendChild(el("button",{class:"btn",style:{border:"1px solid "+C.hostile,color:C.hostile},onClick:clearBoard},"Clear"));
+  app.appendChild(top);
+
+  /* ----- status strip ----- */
+  ref.statusEl=el("div",{class:"statusbar"});
+  app.appendChild(ref.statusEl);
+
+  /* ----- main split ----- */
+  var main=el("div",{class:"main"});
+
+  var boardwrap=el("div",{class:"boardwrap scroll"});
+  // board controls
+  var bc=el("div",{class:"boardctl"});
+  bc.appendChild(labeledNum("Cols",function(){return state.grid.cols;},6,80,1,function(v){state.grid.cols=v;renderBoard();}));
+  bc.appendChild(labeledNum("Rows",function(){return state.grid.rows;},6,60,1,function(v){state.grid.rows=v;renderBoard();}));
+  bc.appendChild(labeledNum("Ft / square",function(){return state.grid.ftPerCell;},50,5000,50,function(v){state.grid.ftPerCell=v;renderBoard();refreshReadouts();schedulePersist();}));
+  var zoomCtl=el("div",{class:"ctl"});
+  zoomCtl.appendChild(el("span",{class:"lab"},"Zoom"));
+  zoomCtl.appendChild(el("input",{type:"range",min:0.4,max:2.4,step:0.05,value:1,style:{width:"110px"},
+    onInput:function(e){state.zoom=+e.target.value;renderBoard();}}));
+  bc.appendChild(zoomCtl);
+  ref.rangeChk=checkbox("Move range",function(){return state.showRange;},function(v){state.showRange=v;renderBoard();});
+  ref.distChk=checkbox("Distances",function(){return state.showDist;},function(v){state.showDist=v;renderBoard();});
+  bc.appendChild(ref.rangeChk.node); bc.appendChild(ref.distChk.node);
+  boardwrap.appendChild(bc);
+
+  ref.boardContainer=el("div",{style:{position:"relative"}});
+  boardwrap.appendChild(ref.boardContainer);
+  main.appendChild(boardwrap);
+
+  // sidebar
+  var side=el("div",{class:"sidebar scroll"});
+  ref.listEl=el("div",{style:{borderBottom:"1px solid "+C.border}});
+  ref.panelEl=el("div",{});
+  side.appendChild(ref.listEl);
+  side.appendChild(ref.panelEl);
+  main.appendChild(side);
+
+  app.appendChild(main);
+
+  // board drag delegation
+  ref.boardContainer.addEventListener("mousedown",onBoardDown);
+  window.addEventListener("mousemove",onBoardMove);
+  window.addEventListener("mouseup",function(){drag=null;});
+}
+function divider(){return el("div",{style:{width:"1px",height:"22px",background:C.border}});}
+function segBtn(v,label,color){
+  return el("button",{dataset:{seg:v},onClick:function(){state.addFaction=v;refreshChrome();}},label);
+}
+
+/* =========================================================================
+   CHROME REFRESH (active states / round / move mode)
+   ======================================================================= */
+function refreshChrome(){
+  ref.roundEl.textContent="ROUND "+state.round;
+  ref.moveBtn.textContent="Move mode: "+(state.moveMode?"ON":"OFF");
+  ref.moveBtn.style.background=state.moveMode?C.teal:C.panel;
+  ref.moveBtn.style.color=state.moveMode?"#04201d":C.ink;
+  ref.moveBtn.style.border="1px solid "+(state.moveMode?C.teal:C.border);
+  // add-faction segment
+  Array.prototype.forEach.call(ref.addSeg.children,function(b){
+    var v=b.dataset.seg, on=state.addFaction===v, color=v==="hostile"?C.hostile:C.friendly;
+    b.style.background=on?color:"transparent"; b.style.color=on?"#0b0f14":C.muted;
+  });
+  ref.rangeChk.set(); ref.distChk.set();
+}
+
+/* =========================================================================
+   STATUS STRIP
+   ======================================================================= */
+function renderStatus(msg){
+  if(msg){ref.statusEl.textContent=msg;ref.statusEl.style.color=C.teal;
+    setTimeout(function(){renderStatus();},2400);return;}
+  var base="1 square = "+state.grid.ftPerCell+" ft  ·  drag blips to move  ·  drag the ring handle to turn  ·  "+state.ships.length+" ships";
+  if(state.moveMode) base="MOVE MODE — drags are limited to each ship's reach from its round-start anchor.  "+state.ships.length+" ships";
+  if(!STORAGE_OK) base="Storage blocked in this view — save the file and open it directly to keep battles.  "+base;
+  ref.statusEl.textContent=base; ref.statusEl.style.color=C.muted;
+}
+
+/* =========================================================================
+   BOARD (SVG via string; coords in cell units)
+   ======================================================================= */
+function renderBoard(){
+  var g=state.grid, cols=g.cols, rows=g.rows, ftc=g.ftPerCell;
+  var cellPx=30*state.zoom;
+  var W=cols*cellPx, H=rows*cellPx;
+  var sel=selected();
+  var s="";
+
+  // background
+  s+='<rect x="0" y="0" width="'+cols+'" height="'+rows+'" fill="'+C.panel2+'"/>';
+  // grid
+  for(var x=0;x<=cols;x++) s+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="'+rows+'" stroke="'+(x%5===0?C.faint:C.borderSoft)+'" stroke-width="0.02"/>';
+  for(var y=0;y<=rows;y++) s+='<line x1="0" y1="'+y+'" x2="'+cols+'" y2="'+y+'" stroke="'+(y%5===0?C.faint:C.borderSoft)+'" stroke-width="0.02"/>';
+
+  // distance lines from selected
+  if(state.showDist && sel){
+    state.ships.forEach(function(o){
+      if(o.id===sel.id)return;
+      var dft=Math.round(Math.hypot(o.gx-sel.gx,o.gy-sel.gy)*ftc);
+      var mx=(sel.gx+o.gx)/2,my=(sel.gy+o.gy)/2;
+      s+='<line x1="'+sel.gx+'" y1="'+sel.gy+'" x2="'+o.gx+'" y2="'+o.gy+'" stroke="'+C.faint+'" stroke-width="0.025" stroke-dasharray="0.15 0.15"/>';
+      s+='<g transform="translate('+mx+' '+my+')"><rect x="-0.95" y="-0.28" width="1.9" height="0.56" rx="0.1" fill="'+C.bg+'" opacity="0.85"/>'+
+         '<text x="0" y="0.16" text-anchor="middle" font-size="0.42" fill="'+C.muted+'" font-family="monospace">'+dft+'ft</text></g>';
+    });
+  }
+
+  // cannon targeting lines (Aiming/Ready)
+  state.ships.forEach(function(sh){
+    sh.cannons.forEach(function(c){
+      if((c.status==="Aiming"||c.status==="Ready") && c.target){
+        var t=getShip(c.target); if(!t)return;
+        var col=c.status==="Ready"?C.hostile:C.amber;
+        s+='<line x1="'+sh.gx+'" y1="'+sh.gy+'" x2="'+t.gx+'" y2="'+t.gy+'" stroke="'+col+'" stroke-width="0.02" stroke-opacity="0.35" stroke-dasharray="0.12 0.1"/>';
+      }
+    });
+  });
+
+  // ships
+  state.ships.forEach(function(sh){ s+=tokenSVG(sh, sh.id===state.selectedId, ftc); });
+
+  ref.boardContainer.style.width=W+"px";
+  ref.boardContainer.style.height=H+"px";
+  ref.boardContainer.style.boxShadow="0 0 0 1px "+C.border;
+  ref.boardContainer.innerHTML='<svg viewBox="0 0 '+cols+' '+rows+'" width="'+W+'" height="'+H+'" style="background:'+C.panel2+';user-select:none">'+s+'</svg>';
+}
+
+function tokenSVG(sh,isSel,ftc){
+  var color=sh.faction==="hostile"?C.hostile:C.friendly;
+  var hp=sh.hullMax>0?clamp(sh.hullCur/sh.hullMax,0,1):0;
+  var mm=modifiedMove(sh);
+  var budget=mm.move/ftc; // cells
+  var s="";
+  var anchor=sh.roundStartPos||{gx:sh.gx,gy:sh.gy};
+
+  // range / budget visualization
+  if(isSel){
+    if(state.moveMode){
+      // budget circle anchored at round start
+      s+='<circle cx="'+anchor.gx+'" cy="'+anchor.gy+'" r="'+budget+'" fill="'+color+'" fill-opacity="0.05" stroke="'+color+'" stroke-opacity="0.55" stroke-width="0.03" stroke-dasharray="0.2 0.18"/>';
+      s+='<circle cx="'+anchor.gx+'" cy="'+anchor.gy+'" r="0.12" fill="'+C.beacon+'" opacity="0.7"/>';
+      s+='<line x1="'+anchor.gx+'" y1="'+anchor.gy+'" x2="'+sh.gx+'" y2="'+sh.gy+'" stroke="'+C.beacon+'" stroke-width="0.025" stroke-opacity="0.5" stroke-dasharray="0.1 0.1"/>';
+    } else if(state.showRange && budget>0){
+      s+='<circle cx="'+sh.gx+'" cy="'+sh.gy+'" r="'+budget+'" fill="'+color+'" fill-opacity="0.05" stroke="'+color+'" stroke-opacity="0.5" stroke-width="0.03" stroke-dasharray="0.2 0.18"/>';
+    }
+  }
+
+  // pivot arc — signature element
+  if(isSel && mm.turned>0.5){
+    s+='<path d="'+arcPath(sh.gx,sh.gy,0.75,sh.roundStartHeading,sh.heading)+'" fill="none" stroke="'+C.amber+'" stroke-width="0.06" stroke-opacity="0.9"/>';
+  }
+  // selection halo
+  if(isSel) s+='<circle cx="'+sh.gx+'" cy="'+sh.gy+'" r="0.62" fill="none" stroke="'+C.beacon+'" stroke-width="0.04" opacity="0.9"/>';
+
+  // blip (rotated triangle); data-token enables drag
+  s+='<g data-token="'+sh.id+'" transform="translate('+sh.gx+' '+sh.gy+') rotate('+sh.heading+')" style="cursor:grab">'+
+       '<polygon points="0,-0.46 0.34,0.36 0,0.18 -0.34,0.36" fill="'+color+'" stroke="'+C.bg+'" stroke-width="0.04"/>'+
+       '<circle cx="0" cy="0.05" r="0.07" fill="'+C.bg+'" opacity="0.5"/></g>';
+
+  // hp pip
+  s+='<rect x="'+(sh.gx-0.4)+'" y="'+(sh.gy+0.55)+'" width="0.8" height="0.12" rx="0.05" fill="'+C.bg+'" stroke="'+C.border+'" stroke-width="0.015"/>';
+  s+='<rect x="'+(sh.gx-0.4)+'" y="'+(sh.gy+0.55)+'" width="'+(0.8*hp)+'" height="0.12" rx="0.05" fill="'+(hp>0.5?C.friendly:hp>0.25?C.amber:C.hostile)+'"/>';
+
+  // name
+  s+='<text x="'+sh.gx+'" y="'+(sh.gy-0.72)+'" text-anchor="middle" font-size="0.42" fill="'+C.ink+'" font-family="system-ui">'+esc(sh.name)+'</text>';
+
+  // rotate handle
+  if(isSel){
+    var hr=sh.heading*Math.PI/180;
+    var hx=sh.gx+0.95*Math.sin(hr), hy=sh.gy-0.95*Math.cos(hr);
+    s+='<line x1="'+sh.gx+'" y1="'+sh.gy+'" x2="'+hx+'" y2="'+hy+'" stroke="'+C.beacon+'" stroke-width="0.02" opacity="0.4"/>';
+    s+='<circle data-handle="'+sh.id+'" cx="'+hx+'" cy="'+hy+'" r="0.18" fill="'+C.beacon+'" stroke="'+C.bg+'" stroke-width="0.03" style="cursor:crosshair"/>';
+  }
+  return s;
+}
+
+function arcPath(cx,cy,r,aDeg,bDeg){
+  var delta=((bDeg-aDeg)%360+360)%360;
+  var sweep=delta<=180?delta:delta-360;
+  var p=function(deg){return [cx+r*Math.sin(deg*Math.PI/180), cy-r*Math.cos(deg*Math.PI/180)];};
+  var a=p(aDeg), b=p(aDeg+sweep);
+  var large=Math.abs(sweep)>180?1:0, dir=sweep>=0?1:0;
+  return "M "+a[0]+" "+a[1]+" A "+r+" "+r+" 0 "+large+" "+dir+" "+b[0]+" "+b[1];
+}
+
+/* ---------- board drag ---------- */
+function onBoardDown(e){
+  var h=e.target.closest&&e.target.closest("[data-handle]");
+  if(h){e.preventDefault();var id=h.getAttribute("data-handle");selectShip(id);drag={type:"rotate",id:id};return;}
+  var t=e.target.closest&&e.target.closest("[data-token]");
+  if(t){e.preventDefault();var id2=t.getAttribute("data-token");selectShip(id2);drag={type:"move",id:id2};return;}
+}
+function onBoardMove(e){
+  if(!drag)return;
+  var svg=ref.boardContainer.querySelector("svg"); if(!svg)return;
+  var r=svg.getBoundingClientRect();
+  var gx=clamp((e.clientX-r.left)/r.width*state.grid.cols,0,state.grid.cols);
+  var gy=clamp((e.clientY-r.top)/r.height*state.grid.rows,0,state.grid.rows);
+  var sh=getShip(drag.id); if(!sh)return;
+  if(drag.type==="move"){
+    var p=clampToBudget(sh,gx,gy);
+    sh.gx=clamp(p.gx,0,state.grid.cols); sh.gy=clamp(p.gy,0,state.grid.rows);
+  }else{
+    var ang=Math.atan2(gy-sh.gy,gx-sh.gx)*180/Math.PI+90;
+    sh.heading=((ang%360)+360)%360;
+  }
+  renderBoard(); refreshReadouts(); schedulePersist();
+}
+function clampToBudget(sh,gx,gy){
+  if(!state.moveMode) return {gx:gx,gy:gy};
+  var a=sh.roundStartPos||{gx:sh.gx,gy:sh.gy};
+  var budget=modifiedMove(sh).move/state.grid.ftPerCell;
+  var dx=gx-a.gx, dy=gy-a.gy, d=Math.hypot(dx,dy);
+  if(d<=budget||d===0) return {gx:gx,gy:gy};
+  var k=budget/d;
+  return {gx:a.gx+dx*k, gy:a.gy+dy*k};
+}
+
+/* =========================================================================
+   TURN-ORDER LIST
+   ======================================================================= */
+function renderList(){
+  ref.listEl.innerHTML="";
+  ref.listEl.appendChild(el("div",{class:"sectlabel",style:{padding:"0 16px",margin:"12px 0 4px"}},"Turn order · by initiative"));
+  var wrap=el("div",{style:{padding:"0 8px 10px"}});
+  var ordered=state.ships.slice().sort(function(a,b){return b.init-a.init;});
+  if(!ordered.length) wrap.appendChild(el("div",{style:{padding:"4px 8px",color:C.muted,fontSize:"11px"}},"—"));
+  ordered.forEach(function(sh){
+    var color=sh.faction==="hostile"?C.hostile:C.friendly, active=sh.id===state.selectedId;
+    var row=el("div",{class:"listrow",style:{background:active?C.panel2:"transparent",border:"1px solid "+(active?color:"transparent")},
+      onClick:function(){selectShip(sh.id);}},
+      el("span",{style:{width:"18px",textAlign:"center",fontFamily:C.mono||"monospace",color:C.amber,fontSize:"11px"}},String(sh.init)),
+      el("span",{style:{width:"9px",height:"9px",borderRadius:"50%",background:color,flexShrink:"0"}}),
+      el("span",{style:{flex:"1",color:active?C.beacon:C.ink,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},sh.name),
+      el("span",{style:{fontFamily:"monospace",fontSize:"11px",color:C.muted}},sh.hullCur+"/"+sh.hullMax)
+    );
+    wrap.appendChild(row);
+  });
+  ref.listEl.appendChild(wrap);
+}
+
+/* =========================================================================
+   SHIP PANEL  (rebuilt on selection / structural change only)
+   ======================================================================= */
+function renderPanel(){
+  R={};
+  ref.panelEl.innerHTML="";
+  var sh=selected();
+  if(!sh){
+    ref.panelEl.appendChild(el("div",{style:{padding:"24px",color:C.muted,fontSize:"12px",lineHeight:"1.6"}},
+      "No ship selected. Add a hull from the top bar, then click its blip to edit hull, systems, cannons, and heading."));
+    return;
+  }
+  var color=sh.faction==="hostile"?C.hostile:C.friendly;
+  var wrap=el("div",{style:{padding:"16px"}});
+
+  // header
+  var name=el("input",{class:"inp",value:sh.name,style:{flex:"1",fontWeight:"700",fontSize:"15px",color:C.beacon},
+    onInput:function(e){sh.name=e.target.value;renderBoard();renderListNames();schedulePersist();}});
+  wrap.appendChild(el("div",{style:{display:"flex",alignItems:"center",gap:"8px",marginBottom:"12px"}},
+    el("span",{style:{width:"12px",height:"12px",borderRadius:"50%",background:color}}),
+    name,
+    el("button",{class:"btn",style:{border:"1px solid "+C.hostile,color:C.hostile,background:C.panel2},onClick:function(){removeShip(sh.id);}},"✕")
+  ));
+
+  // faction + class
+  var facSeg=el("div",{class:"seg"});
+  ["friendly","hostile"].forEach(function(f){
+    var on=sh.faction===f, col=f==="hostile"?C.hostile:C.friendly;
+    facSeg.appendChild(el("button",{style:{background:on?col:"transparent",color:on?"#0b0f14":C.muted},
+      onClick:function(){sh.faction=f;renderPanel();renderBoard();renderList();schedulePersist();}}, f==="hostile"?"Hostile":"Friendly"));
+  });
+  var classSel=el("select",{class:"inp",onChange:function(e){
+    var h=e.target.value, st=HULLS[h];
+    if(st){sh.hullClass=h;sh.ac=st.ac;sh.hullMax=st.hull;sh.hullCur=Math.min(sh.hullCur,st.hull);sh.move=st.move;sh.init=st.init;}
+    else sh.hullClass=h;
+    renderPanel();renderBoard();renderList();schedulePersist();
+  }});
+  Object.keys(HULLS).concat(["Custom"]).forEach(function(h){
+    var o=el("option",{value:h},h); if(sh.hullClass===h)o.selected=true; classSel.appendChild(o);
+  });
+  wrap.appendChild(el("div",{class:"row"}, facSeg, el("div",{style:{flex:"1"}}), field("Class",classSel)));
+
+  // core stats
+  wrap.appendChild(el("div",{class:"row"},
+    field("AC", numIn(function(){return sh.ac;},1,function(v){sh.ac=v;schedulePersist();})),
+    field("Init", numIn(function(){return sh.init;},1,function(v){sh.init=v;renderList();schedulePersist();})),
+    field("Base move (ft)", numIn(function(){return sh.move;},100,function(v){sh.move=v;refreshReadouts();renderBoard();schedulePersist();}))
+  ));
+
+  // hull
+  wrap.appendChild(el("div",{class:"sectlabel"},"Hull integrity"));
+  wrap.appendChild(valueBar(C.teal,
+    function(){return sh.hullCur;},function(){return sh.hullMax;},false,
+    function(v){sh.hullCur=v;renderBoard();renderList();schedulePersist();},
+    function(v){sh.hullMax=v;sh.hullCur=Math.min(sh.hullCur,v);renderBoard();renderList();schedulePersist();}
+  ));
+
+  // heading & movement
+  wrap.appendChild(el("div",{class:"sectlabel"},"Heading & movement"));
+  var box=el("div",{class:"box"});
+  var headRow=el("div",{class:"row"});
+  headRow.appendChild(field("Heading °", numIn(function(){return Math.round(sh.heading);},1,function(v){sh.heading=((v%360)+360)%360;refreshReadouts();renderBoard();schedulePersist();})));
+  var btns=el("div",{style:{display:"flex",gap:"4px",alignItems:"flex-end",paddingBottom:"1px"}});
+  btns.appendChild(el("button",{class:"btn",onClick:function(){sh.heading=((sh.heading-15)%360+360)%360;refreshReadouts();renderBoard();schedulePersist();}},"⟲ 15"));
+  btns.appendChild(el("button",{class:"btn",onClick:function(){sh.heading=(sh.heading+15)%360;refreshReadouts();renderBoard();schedulePersist();}},"15 ⟳"));
+  btns.appendChild(el("button",{class:"btn",style:{border:"1px solid "+C.amber,color:C.amber},
+    onClick:function(){sh.roundStartHeading=sh.heading;sh.roundStartPos={gx:sh.gx,gy:sh.gy};refreshReadouts();renderBoard();renderStatus("Anchored "+sh.name+" here");schedulePersist();}},"Anchor here"));
+  headRow.appendChild(btns);
+  box.appendChild(headRow);
+
+  var ro=el("div",{style:{display:"flex",gap:"10px",marginTop:"10px",flexWrap:"wrap"}});
+  R.turned=readout("Turned","",C.amber); R.pen=readout("Pivot pen.","",C.hostile);
+  R.mod=readout("Mod. move","",C.beacon); R.sq=readout("Squares","",C.teal); R.used=readout("Used / left","",C.muted);
+  ro.appendChild(R.turned.node);ro.appendChild(R.pen.node);ro.appendChild(R.mod.node);ro.appendChild(R.sq.node);ro.appendChild(R.used.node);
+  box.appendChild(ro);
+
+  var fs=checkbox("Full speed ahead (×1.5, attacks at disadvantage)",function(){return sh.fullSpeed;},function(v){sh.fullSpeed=v;refreshReadouts();renderBoard();schedulePersist();});
+  box.appendChild(el("div",{style:{marginTop:"10px"}},fs.node));
+  wrap.appendChild(box);
+
+  // systems
+  var sysHead=el("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:"18px",marginBottom:"6px"}},
+    el("span",{style:{fontSize:"10px",letterSpacing:"1.5px",color:C.muted,textTransform:"uppercase"}},"Systems"),
+    el("button",{class:"btn",style:{border:"1px solid "+C.teal,color:C.teal,background:C.panel2},onClick:function(){
+      sh.systems.push({id:uid(),name:"New system",max:50,cur:50});renderPanel();schedulePersist();}},"+ Add system"));
+  wrap.appendChild(sysHead);
+  sh.systems.forEach(function(sys){
+    var nameI=el("input",{class:"inp",value:sys.name,style:{flex:"1",fontSize:"12px"},onInput:function(e){sys.name=e.target.value;schedulePersist();}});
+    var del=el("button",{class:"btn",style:{color:C.muted},onClick:function(){sh.systems=sh.systems.filter(function(z){return z.id!==sys.id;});renderPanel();schedulePersist();}},"✕");
+    var blk=el("div",{style:{marginBottom:"8px"}},
+      el("div",{style:{display:"flex",gap:"6px",alignItems:"center",marginBottom:"3px"}},nameI,del),
+      valueBar(C.amber,function(){return sys.cur;},function(){return sys.max;},true,
+        function(v){sys.cur=v;schedulePersist();},
+        function(v){sys.max=v;sys.cur=Math.min(sys.cur,v);schedulePersist();}));
+    wrap.appendChild(blk);
+  });
+
+  // cannons
+  var canHead=el("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:"18px",marginBottom:"6px"}},
+    el("span",{style:{fontSize:"10px",letterSpacing:"1.5px",color:C.muted,textTransform:"uppercase"}},"Cannons"),
+    el("button",{class:"btn",style:{border:"1px solid "+C.teal,color:C.teal,background:C.panel2},onClick:function(){
+      sh.cannons.push({id:uid(),name:"Battery "+(sh.cannons.length+1),status:"Idle",ammo:"Solid shot",target:""});renderPanel();schedulePersist();}},"+ Add cannon"));
+  wrap.appendChild(canHead);
+  sh.cannons.forEach(function(c){ wrap.appendChild(cannonCard(sh,c)); });
+
+  ref.panelEl.appendChild(wrap);
+  refreshReadouts();
+}
+
+function cannonCard(sh,c){
+  var card=el("div",{class:"box",style:{marginBottom:"8px",padding:"10px"}});
+  var nameI=el("input",{class:"inp",value:c.name,style:{flex:"1",fontSize:"12px"},onInput:function(e){c.name=e.target.value;schedulePersist();}});
+  var del=el("button",{class:"btn",style:{color:C.muted},onClick:function(){sh.cannons=sh.cannons.filter(function(z){return z.id!==c.id;});renderPanel();schedulePersist();}},"✕");
+  card.appendChild(el("div",{style:{display:"flex",gap:"6px",alignItems:"center",marginBottom:"8px"}},nameI,del));
+
+  var chip=el("div",{style:{cursor:"pointer",padding:"5px 10px",borderRadius:"6px",fontFamily:"monospace",fontSize:"12px",fontWeight:"700",
+    color:"#0b0f14",background:CANNON_COLOR[c.status],minWidth:"84px",textAlign:"center"},
+    title:"Click to advance: Idle → Loading → Loaded → Aiming → Ready → Fired",
+    onClick:function(){var i=CANNON_FLOW.indexOf(c.status);c.status=CANNON_FLOW[(i+1)%CANNON_FLOW.length];renderPanel();renderBoard();schedulePersist();}},
+    c.status.toUpperCase());
+  var reset=el("button",{class:"btn",style:{color:C.muted},onClick:function(){c.status="Idle";renderPanel();renderBoard();schedulePersist();}},"Reset");
+  card.appendChild(el("div",{style:{display:"flex",gap:"6px",alignItems:"center",marginBottom:"8px"}},chip,reset));
+
+  var ammoSel=el("select",{class:"inp",style:{fontSize:"12px"},onChange:function(e){c.ammo=e.target.value;schedulePersist();}});
+  AMMO.forEach(function(a){var o=el("option",{value:a},a);if(c.ammo===a)o.selected=true;ammoSel.appendChild(o);});
+  var tgtSel=el("select",{class:"inp",style:{fontSize:"12px"},onChange:function(e){c.target=e.target.value;renderBoard();schedulePersist();}});
+  var none=el("option",{value:""},"—"); if(!c.target)none.selected=true; tgtSel.appendChild(none);
+  state.ships.forEach(function(o){if(o.id===sh.id)return;var op=el("option",{value:o.id},o.name);if(c.target===o.id)op.selected=true;tgtSel.appendChild(op);});
+
+  card.appendChild(el("div",{class:"row"},field("Ammo",ammoSel),field("Target",tgtSel)));
+  return card;
+}
+
+/* live readouts (called from board drag without rebuilding panel) */
+function refreshReadouts(){
+  var sh=selected(); if(!sh||!R.mod)return;
+  var mm=modifiedMove(sh);
+  var a=sh.roundStartPos||{gx:sh.gx,gy:sh.gy};
+  var used=Math.hypot(sh.gx-a.gx,sh.gy-a.gy)*state.grid.ftPerCell;
+  var left=Math.max(0,mm.move-used);
+  R.turned.set(Math.round(mm.turned)+"°", mm.turned>0?C.amber:C.muted);
+  R.pen.set("-"+mm.pen+"%", mm.pen>0?C.hostile:C.muted);
+  R.mod.set(Math.round(mm.move)+" ft", C.beacon);
+  R.sq.set((mm.move/state.grid.ftPerCell).toFixed(1), C.teal);
+  R.used.set(Math.round(used)+" / "+Math.round(left), used>mm.move+0.5?C.hostile:C.muted);
+}
+
+/* keep list names/hp in sync without full list rebuild (cheap: just rebuild list) */
+function renderListNames(){renderList();}
+
+/* =========================================================================
+   PANEL PRIMITIVES
+   ======================================================================= */
+function field(label,child){return el("label",{class:"field"},el("span",{class:"lab"},label),child);}
+function readout(label,val,color){
+  var v=el("span",{class:"val",style:{color:color}},val);
+  return {node:el("div",{class:"readout"},el("span",{class:"lab"},label),v),
+    set:function(t,c){v.textContent=t;if(c)v.style.color=c;}};
+}
+function numIn(get,step,onChange){
+  return el("input",{class:"inp mono",type:"number",value:get(),step:step,style:{width:"64px"},
+    onInput:function(e){onChange(e.target.value===""?0:+e.target.value);}});
+}
+function labeledNum(label,get,min,max,step,onChange){
+  return el("div",{class:"ctl"},el("span",{class:"lab"},label),
+    el("input",{class:"inp mono",type:"number",value:get(),min:min,max:max,step:step,style:{width:"64px"},
+      onInput:function(e){var v=+e.target.value;if(min!=null)v=Math.max(min,v);if(max!=null)v=Math.min(max,v);onChange(v);}}));
+}
+function checkbox(label,get,onChange){
+  var box=el("span",{class:"cbox"});
+  function paint(){var on=get();box.style.border="1px solid "+(on?C.teal:C.border);box.style.background=on?C.teal:"transparent";box.textContent=on?"✓":"";}
+  paint();
+  var node=el("label",{class:"check",onClick:function(){onChange(!get());paint();}},box,label);
+  return {node:node,set:paint};
+}
+function valueBar(color,getCur,getMax,small,onCur,onMax){
+  var fill=el("div",{class:"fill",style:{background:color,opacity:"0.28"}});
+  var txt=el("div",{class:"txt",style:{fontSize:(small?11:12)+"px"}});
+  var bar=el("div",{class:"bar",style:{height:(small?16:22)+"px"}},fill,txt);
+  var slider=el("input",{type:"range",min:0,max:getMax(),value:clamp(getCur(),0,getMax()),style:{flex:"1"}});
+  var curN=el("input",{class:"inp mono",type:"number",value:getCur(),style:{width:"56px"}});
+  var maxN=el("input",{class:"inp mono",type:"number",value:getMax(),style:{width:"56px"}});
+  function paint(){
+    var cur=getCur(),max=getMax();
+    fill.style.width=(max>0?clamp(cur/max*100,0,100):0)+"%";
+    txt.textContent=cur+" / "+max;
+    slider.max=max; slider.value=clamp(cur,0,max);
+    curN.value=cur; maxN.value=max;
+  }
+  paint();
+  slider.addEventListener("input",function(e){onCur(+e.target.value);paint();});
+  curN.addEventListener("input",function(e){onCur(e.target.value===""?0:+e.target.value);paint();});
+  maxN.addEventListener("input",function(e){onMax(e.target.value===""?0:+e.target.value);paint();});
+  return el("div",{},bar,
+    el("div",{style:{display:"flex",gap:"8px",alignItems:"center"}},
+      slider,curN,el("span",{style:{color:C.muted,fontSize:"11px"}},"max"),maxN));
+}
+
+/* =========================================================================
+   ACTIONS
+   ======================================================================= */
+function selectShip(id){state.selectedId=id;renderPanel();renderBoard();renderList();}
+function addShip(h){var s=newShip(state.addFaction,h);state.ships.push(s);selectShip(s.id);renderStatus();schedulePersist();}
+function removeShip(id){state.ships=state.ships.filter(function(s){return s.id!==id;});if(state.selectedId===id)state.selectedId=null;renderPanel();renderBoard();renderList();schedulePersist();}
+function newRound(){state.ships.forEach(function(s){s.roundStartHeading=s.heading;s.roundStartPos={gx:s.gx,gy:s.gy};s.fullSpeed=false;});state.round++;refreshChrome();renderBoard();refreshReadouts();renderStatus("New round — anchors and pivot baselines reset");schedulePersist();}
+function clearBoard(){if(!confirm("Clear all ships from the board?"))return;state.ships=[];state.selectedId=null;renderPanel();renderBoard();renderList();schedulePersist();}
+
+/* =========================================================================
+   MODALS (templates / battles)
+   ======================================================================= */
+function openModal(kind){
+  var overlay=el("div",{class:"overlay",onClick:function(e){if(e.target===overlay)document.body.removeChild(overlay);}});
+  var modal=el("div",{class:"modal scroll"});
+  var title=kind==="battles"?"Battles":"Ship templates";
+  modal.appendChild(el("div",{style:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px"}},
+    el("h3",{style:{margin:"0",color:C.beacon,fontSize:"15px"}},title),
+    el("button",{class:"btn",onClick:function(){document.body.removeChild(overlay);}},"✕")));
+  if(!STORAGE_OK) modal.appendChild(el("div",{class:"warn"},"Storage is blocked in this view — saves won't persist. Save the .html file and open it directly."));
+
+  var nameInput=el("input",{class:"inp",style:{flex:"1"},placeholder:kind==="battles"?"Battle name":(selected()?'Save "'+selected().name+'" as…':"Select a ship first")});
+  var listWrap=el("div",{style:{marginTop:"12px",display:"flex",flexDirection:"column",gap:"6px"}});
+
+  function refreshSaved(){
+    listWrap.innerHTML="";
+    var prefix=kind==="battles"?P_SAVE:P_TPL;
+    var items=lsKeys(prefix);
+    if(!items.length){listWrap.appendChild(el("div",{style:{color:C.muted,fontSize:"12px",padding:"12px 2px"}},
+      kind==="battles"?"No saved battles yet.":"No templates yet. Select a ship and save it."));return;}
+    items.forEach(function(n){
+      listWrap.appendChild(el("div",{class:"savedrow"},
+        el("span",{style:{flex:"1",color:C.ink}},n),
+        el("button",{class:"btn",style:{border:"1px solid "+C.teal,color:C.teal},onClick:function(){kind==="battles"?loadBattle(n):spawnTemplate(n);if(kind==="battles")document.body.removeChild(overlay);else document.body.removeChild(overlay);}},kind==="battles"?"Load":"Spawn"),
+        el("button",{class:"btn",style:{border:"1px solid "+C.hostile,color:C.hostile},onClick:function(){lsDel(prefix+n);refreshSaved();}},"Delete")
+      ));
+    });
+  }
+
+  var saveBtn=el("button",{class:"btn",style:{background:C.teal,color:"#04201d"},onClick:function(){
+    if(kind==="battles"){var n=nameInput.value.trim();if(!n)return;lsSet(P_SAVE+n,{ships:state.ships,grid:state.grid,round:state.round});renderStatus('Saved battle "'+n+'"');refreshSaved();}
+    else{var sh=selected();if(!sh){renderStatus("Select a ship to save as a template");return;}var nm=nameInput.value.trim()||sh.name;
+      var copy=JSON.parse(JSON.stringify(sh));delete copy.id;delete copy.gx;delete copy.gy;delete copy.heading;delete copy.roundStartHeading;delete copy.roundStartPos;delete copy.fullSpeed;
+      lsSet(P_TPL+nm,copy);renderStatus('Saved template "'+nm+'"');refreshSaved();}
+  }},kind==="battles"?"Save current":"Save selected");
+
+  modal.appendChild(el("div",{style:{display:"flex",gap:"8px",alignItems:"center"}},nameInput,saveBtn));
+  modal.appendChild(listWrap);
+  refreshSaved();
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+function loadBattle(n){
+  var d=lsGet(P_SAVE+n); if(!d)return;
+  state.ships=d.ships||[]; if(d.grid)state.grid=d.grid; state.round=d.round||1; state.selectedId=null;
+  // backfill anchors for older saves
+  state.ships.forEach(function(s){if(!s.roundStartPos)s.roundStartPos={gx:s.gx,gy:s.gy};});
+  refreshChrome();renderBoard();renderList();renderPanel();renderStatus('Loaded "'+n+'"');schedulePersist();
+}
+function spawnTemplate(n){
+  var t=lsGet(P_TPL+n); if(!t)return;
+  var s=JSON.parse(JSON.stringify(t));
+  s.id=uid();
+  s.systems=(s.systems||[]).map(function(y){y.id=uid();return y;});
+  s.cannons=(s.cannons||[]).map(function(y){y.id=uid();y.target="";return y;});
+  s.gx=state.grid.cols/2; s.gy=state.grid.rows/2;
+  s.heading=s.faction==="hostile"?180:0; s.roundStartHeading=s.heading; s.roundStartPos={gx:s.gx,gy:s.gy}; s.fullSpeed=false;
+  state.ships.push(s); selectShip(s.id); schedulePersist();
+}
+
+/* =========================================================================
+   INIT
+   ======================================================================= */
+function init(){
+  buildSkeleton();
+  var saved=lsGet(K_CUR);
+  if(saved&&saved.ships){
+    state.ships=saved.ships; if(saved.grid)state.grid=saved.grid; if(saved.round)state.round=saved.round;
+    state.ships.forEach(function(s){if(!s.roundStartPos)s.roundStartPos={gx:s.gx,gy:s.gy};});
+  }
+  refreshChrome(); renderBoard(); renderList(); renderPanel(); renderStatus();
+}
+init();
+</script>
+</body>
+</html>
