@@ -17,7 +17,7 @@ A browser-based ship-to-ship combat tracker built for **The Land of Fog**, a tab
 
 I designed the naval combat system and rules used in my campaign, and I directed Claude (Anthropic's AI) to build this tool to run it at the table. I'm not a programmer — my role was designing the mechanics, specifying how the tool should work, and testing it extensively through real play sessions to refine it.
 
-## V2
+## v2
 
 This is the current version. It adds:
 
